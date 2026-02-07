@@ -79,7 +79,7 @@ for li in news_li:
   title = title_a.get_text(strip=True)
   link = "https://oig.hhs.gov" + title_a["href"]
 
-  date_span = li.find("div", class_="font-body-sm").find("span")
+  date_span = li.find("div", class_="font-body-sm margin-top-1").find("span")
   date = date_span.get_text(strip=True)
 
   category_li = li.find("ul", class_="display-inline add-list-reset").find("li")
@@ -93,7 +93,7 @@ for li in news_li:
     })
     
 df = pd.DataFrame(data)
-df.head()
+print(df.head())
 ```
 
 ## Step 2: Making the scraper dynamic
@@ -101,6 +101,7 @@ df.head()
 ### 1. Turning the scraper into a function 
 
 * a. Pseudo-Code
+
 DEFINE FUNCTION scrape(start_month, start_year, run_scraper = False)
 
 IF run_scraper IS False:
@@ -271,8 +272,8 @@ monthly_total = df_2022_01.groupby("Year_Month").agg(Count=("Title", "count")).r
 
 chart1 = alt.Chart(monthly_total).mark_line().encode(
   alt.X("Year_Month:O", title="Year-Month"),
-  alt.Y("Count:Q", title="Number of Actions")
-).properties(title="Enforcement Actions sine Jan 2022", width=600, height=300)
+  alt.Y("Count:Q", title="Number of Enforcement Actions")
+).properties(title="Number of Enforcement Actions: Overall since Jan 2022", width=500, height=200)
 chart1
 ```
 
@@ -282,9 +283,22 @@ chart1
 
 ```{python}
 df_2022_01["Main_Category"] = df_2022_01["Category"].apply(
-    lambda x: x if x in ["Criminal and Civil Actions", "State Enforcement Agencies"] else "Other"
+  lambda x: x if x in ["Criminal and Civil Actions", "State Enforcement Agencies"] else "Other"
 )
 
+monthly_main = df_2022_01.groupby(["Year_Month", "Main_Category"]).agg(Action_Count=("Title", "count")).reset_index()
+
+chart2_1 = alt.Chart(monthly_main).mark_line().encode(
+  alt.X("Year_Month:O", title="Year-Month"),
+  alt.Y("Action_Count:Q", title="Number of Enforcement Actions"),
+  alt.Color("Main_Category:N", title="Enforcement Category")
+).properties(title="Number of Enforcement Actions: Criminal and Civil vs State Enforcement Agencies (2022-Present)", width=500, height=200)
+chart2_1
+```
+
+* based on five topics
+
+```{python}
 def get_sub_category(title):
   title = title.lower()
   if "health care" in title or "medical" in title:
@@ -299,35 +313,18 @@ def get_sub_category(title):
     return "Other"
 
 df_2022_01["Sub_Category"] = df_2022_01.apply(
-    lambda row: get_sub_category(row["Title"]) if row["Main_Category"] == "Criminal and Civil Actions" else None,
-    axis=1
+  lambda row: get_sub_category(row["Title"]) if row["Main_Category"] == "Criminal and Civil Actions" else None,
+  axis=1
 )
 
-monthly_main = df_2022_01.groupby(["Year_Month", "Main_Category"]).agg(
-    Action_Count=("Title", "count")
-).reset_index()
-
-chart2_1 = alt.Chart(monthly_main).mark_line().encode(
-  alt.X("Year_Month:O", title="Year-Month"),
-  alt.Y("Action_Count:Q", title="Number of Enforcement Actions"),
-  alt.Color("Main_Category:N", title="Enforcement Category")
-).properties(title="Enforcement Actions: Criminal and Civil vs State Enforcement Agencies (2022-Present)", width=500, height=300)
-chart2_1
-```
-
-* based on five topics
-
-```{python}
 df_criminal_civil = df_2022_01[df_2022_01["Main_Category"] == "Criminal and Civil Actions"].dropna(subset=["Sub_Category"])
 
-monthly_sub = df_criminal_civil.groupby(["Year_Month", "Sub_Category"]).agg(
-    Action_Count=("Title", "count")
-).reset_index()
+monthly_sub = df_criminal_civil.groupby(["Year_Month", "Sub_Category"]).agg(Action_Count=("Title", "count")).reset_index()
 
 chart2_2 = alt.Chart(monthly_sub).mark_line().encode(
   alt.X("Year_Month:O", title="Year-Month"),
   alt.Y("Action_Count:Q", title="Number of Enforcement Actions"),
   alt.Color("Sub_Category:N", title="Sub Category")
-).properties(title="Criminal and Civil Actions: Breakdown by Sub Category (2022-Present)", width=500, height=300)
+).properties(title="Criminal and Civil Actions: Breakdown by Sub Category", width=500, height=200)
 chart2_2
 ```
